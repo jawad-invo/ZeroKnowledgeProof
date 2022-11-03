@@ -1,13 +1,11 @@
 import React from "react";
-// import { sha256 } from "js-sha256";
 import "../../App.css";
 import Web3 from "web3";
-import CryptoJS from "crypto-js";
 
 export default function SignInPage() {
   const [email, setEmail] = React.useState(null);
   const [password, setPassword] = React.useState(null);
-  const [challenge, setChallenge] = React.useState(null);
+  const [verifierOutput, setVerifierOutput] = React.useState(null);
   const [walletButtonAddress, setWalletButtonAddress] =
     React.useState("Connect Wallet");
   const [wallet, setWallet] = React.useState("Connect Wallet");
@@ -58,16 +56,10 @@ export default function SignInPage() {
 
   React.useEffect(() => {
     async function attemptLogin() {
-      var hash = CryptoJS.SHA256(wallet + email);
-      hash = hash.toString(CryptoJS.enc.Hex);
-
-      if (challenge) {
-        setLoading(false);
-
-        console.log("My challenge", hash);
-        console.log("Contract Challenge", challenge);
-
-        if (challenge === "0x" + hash) {
+      console.log("verifier output", verifierOutput);
+      if (verifierOutput) {
+        if (verifierOutput === true) {
+          setLoading(false);
           window.location.pathname = "home";
         } else {
           alert("Authentication failed");
@@ -75,7 +67,7 @@ export default function SignInPage() {
       }
     }
     attemptLogin();
-  }, [challenge]);
+  }, [verifierOutput]);
 
   async function connect() {
     if (window.ethereum) {
@@ -102,35 +94,43 @@ export default function SignInPage() {
           { internalType: "string", name: "email", type: "string" },
         ],
         name: "authChallenge",
-        outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
+        outputs: [],
         stateMutability: "nonpayable",
         type: "function",
       },
       {
         inputs: [
-          { internalType: "string", name: "", type: "string" },
-          { internalType: "string", name: "", type: "string" },
+          { internalType: "string", name: "addres", type: "string" },
+          { internalType: "string", name: "mail", type: "string" },
+          { internalType: "string", name: "_hash", type: "string" },
         ],
-        name: "verifyChallenges",
-        outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
+        name: "verifyChallenge",
+        outputs: [{ internalType: "bool", name: "", type: "bool" }],
         stateMutability: "view",
         type: "function",
       },
     ];
-    var contractAddress = "0xA9c32a68fa2d65654a0EB65CbC3D797f2103D7F6";
+    var contractAddress = "0xca802c762fcb5092d7f374a092d0209c24f7e91c";
 
     const instance = new web3.eth.Contract(abi, contractAddress);
+
+    // request for challenge
     await instance.methods
       .authChallenge(accounts[0], email)
       .send({
         from: accounts[0],
       })
       .then(async () => {
-        const getChallange = await instance.methods
-          .verifyChallenges(accounts[0], email)
+        // challenge solution
+        var solution = wallet + "9" + email;
+
+        // call verifier with solution
+        const verifierResult = await instance.methods
+          .verifyChallenge(accounts[0], email, solution)
           .call();
-        setChallenge(getChallange);
-        // setTimeout(async () => {}, 10000);
+
+        // set the verifier output to state
+        setVerifierOutput(verifierResult);
       });
   }
 
