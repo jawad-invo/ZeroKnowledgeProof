@@ -58,20 +58,11 @@ export default function SignInPage() {
 
   React.useEffect(() => {
     async function attemptLogin() {
-      var hash = CryptoJS.SHA256(wallet + email);
-      hash = hash.toString(CryptoJS.enc.Hex);
-
       if (challenge) {
         setLoading(false);
-
-        console.log("My challenge", hash);
-        console.log("Contract Challenge", challenge);
-
-        if (challenge === "0x" + hash) {
-          window.location.pathname = "home";
-        } else {
-          alert("Authentication failed");
-        }
+        window.location.pathname = "home";
+      } else {
+        alert("Authentication failed");
       }
     }
     attemptLogin();
@@ -108,8 +99,8 @@ export default function SignInPage() {
       },
       {
         inputs: [
-          { internalType: "string", name: "", type: "string" },
-          { internalType: "string", name: "", type: "string" },
+          { internalType: "string", name: "address", type: "string" },
+          { internalType: "string", name: "solvedChallenge", type: "string" },
         ],
         name: "verifyChallenges",
         outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
@@ -120,18 +111,19 @@ export default function SignInPage() {
     var contractAddress = "0xA9c32a68fa2d65654a0EB65CbC3D797f2103D7F6";
 
     const instance = new web3.eth.Contract(abi, contractAddress);
-    await instance.methods
+    const challenge = await instance.methods
       .authChallenge(accounts[0], email)
       .send({
         from: accounts[0],
-      })
-      .then(async () => {
-        const getChallange = await instance.methods
-          .verifyChallenges(accounts[0], email)
-          .call();
-        setChallenge(getChallange);
-        // setTimeout(async () => {}, 10000);
       });
+    // Solve the Given Challenge
+    const computedChallegeValue = `${wallet}.${email}.12`;
+    // verifier
+    const verifedSolution = await instance.methods
+      .verifyChallenges(accounts[0], computedChallegeValue)
+      .call();
+    setChallenge(verifedSolution);
+    // setTimeout(async () => {}, 10000);
   }
 
   return (
